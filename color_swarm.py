@@ -194,6 +194,122 @@ swarms = {
             },
         ],
     },
+    "Grad party": {
+        "transition_secs": 1,
+        "max_hold_secs": 30,
+        "palette": [
+            {
+                # Blackhawk (sorta)
+                "rgb_color": (64, 0, 255),
+                "brightness": 163,
+            },
+            {
+                # Gold
+                "rgb_color": (255, 205, 49),
+                "brightness": 240,
+            }
+        ]
+        +
+        [
+            {
+                # White
+                "kelvin": 3200,
+                "brightness": 255,
+            },
+        ] * 10,
+    },
+    "USA": {
+        "transition_secs": 3,
+        "max_hold_secs": 60,
+        "palette": [
+            {
+                "rgb_color": (255, 0, 0),
+                "brightness": 255,
+            },
+            {
+                "rgb_color": (0, 0, 255),
+                "brightness": 255,
+            },
+            {
+                "rgb_color": (255, 255, 255),
+                "brightness": 255,
+            },
+        ],
+    },
+    "Northern lights": {
+        "transition_secs": 1,
+        "max_hold_secs": 8,
+        "palette": [
+            {
+                "rgb_color": (23, 35, 71),
+                "brightness": 255,
+            },
+            {
+                "rgb_color": (2, 83, 133),
+                "brightness": 255,
+            },
+            {
+                "rgb_color": (14, 243, 197),
+                "brightness": 200,
+            },
+            {
+                "rgb_color": (4, 226, 183),
+                "brightness": 200,
+            },
+            {
+                "rgb_color": (3, 132, 152),
+                "brightness": 220,
+            },
+            {
+                "rgb_color": (1, 82, 104),
+                "brightness": 255,
+            },            
+        ],
+    },
+    "Summer night": {
+        "transition_secs": 10,
+        "max_hold_secs": 60,
+        "palette": [
+            {
+                "rgb_color": (160, 82, 255),
+                "brightness": 28,
+            },
+            {
+                "rgb_color": (96, 84, 255),
+                "brightness": 1,
+            },
+        ],
+    },        
+    "Candlelight": {
+        "transition_secs": 0.25,
+        "max_hold_secs": 4,
+        "palette": [
+            {
+                "color_temp": 2300,
+                "brightness": 22,
+            },
+            {
+                "color_temp": 2100,
+                "brightness": 48,
+            },
+            {
+                "color_temp": 2200,
+                "brightness": 67,
+            },
+            {
+                "color_temp": 3200,
+                "brightness": 42,
+            },
+            {
+                "color_temp": 1500,
+                "brightness": 22,
+            },
+            {
+                "color_temp": 4500,
+                "brightness": 70,
+            },
+        ],
+    },        
 }
     
 
