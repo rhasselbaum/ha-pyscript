@@ -1,3 +1,6 @@
+FRONT_LIGHTS = ["light.front_door_east", "light.front_door_west"]
+
+
 @service
 def front_door_alert():
     """Alert for front door motion."""
@@ -7,6 +10,7 @@ def front_door_alert():
         entity_ids=["light.tree_lamp_left", "light.table_north", "light.office_fan_ne"],
         rgb_color=[255, 50, 0]
     )
+
 
 @service
 def back_yard_alert():
@@ -18,23 +22,29 @@ def back_yard_alert():
         rgb_color=[77, 0, 255]
     )
 
+
 @service
 def front_door_flood():
     """Turn on front door lights if off."""
 
     if light.outside == "off":
-        front_lights = ["light.front_door_east", "light.front_door_west"]
-        def color_lights(front_lights, rgb_color):
-            for light_entity in front_lights:
+        def color_lights(rgb_color):
+            for light_entity in FRONT_LIGHTS:
                 light.turn_on(entity_id=light_entity, rgb_color=rgb_color, brightness=255)
             task.sleep(2)
-        color_lights(front_lights, [255, 253, 253])
-        color_lights(front_lights, [255, 45, 43])
-        color_lights(front_lights, [255, 253, 253])
+        color_lights([255, 253, 253])
+        color_lights([255, 45, 43])
+        color_lights([255, 253, 253])
+
 
 @service
 def front_door_end_flood():
     """Turn off front door lights if flooding."""
 
-    if light.outside == "on" and light.outside.rgb_color == (255, 252, 252):
+    # Make list of booleans indicating whether each front door light has the flood color. Note that
+    # the RGB value is slightly different here b/c this is what HA reads back after flood lighting
+    # has been turned on. Apparently, there's some value fitting going on. :-/
+    lights_flooding = [state.get(f"{light}.rgb_color") == (255, 252, 252) for light in FRONT_LIGHTS]
+    # If all front door lights are in the flood state, turn them off.
+    if light.outside == "on" and all(lights_flooding):
         light.turn_off(entity_id="light.outside")
