@@ -1,7 +1,7 @@
 from hashlib import sha1
 
 @service
-def flash_lights(entity_ids=[], rgb_color=[255, 50, 0], count=3, delay_sec=1):
+def flash_lights(entity_ids=[], rgb_color=[255, 50, 0], count=3, delay_sec=1.25):
     """Flash lights a specific color and then restore their original states.
     
     :param entity_ids: List of light entity IDs. May omit the leading "light." prefix.

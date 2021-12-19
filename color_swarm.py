@@ -3,8 +3,7 @@ A collection of lighting effects that runs asynchronously on Philips Hue rooms/g
 Pyscript must be configured to expose the "hass" global variable and allow all imports
 so that we can access the Hue bridge configs and entity registry.
 """
-import aiohttp
-from aiohue.bridge import Bridge
+from aiohue import HueBridgeV2
 from homeassistant.helpers import entity_registry as er
 import time
 import heapq
@@ -311,7 +310,7 @@ swarms = {
         ],
     },        
 }
-    
+
 
 def light_entities_for_group(group_name):
     """Find light entity IDs for the Philips Hue group/room name.
@@ -329,19 +328,18 @@ def light_entities_for_group(group_name):
     entity_registry = er.async_get_registry(hass)
     # Find Hue bridge config(s).
     for config_entry in hass.config_entries.async_entries(domain="hue"):
-        host, username = config_entry.data["host"], config_entry.data["username"]
-        async with aiohttp.ClientSession() as session:
-            bridge = Bridge(host, session, username=username)
+        host, api_key = config_entry.data["host"], config_entry.data["api_key"]
+        async with HueBridgeV2(host, api_key) as bridge:
             # Query Hue bridge for lights in the matching group (if any).
-            await bridge.initialize()
-            local_light_id_groups = [group.lights for group in bridge.groups.values() if group.name == group_name]
+            local_light_id_groups = [group.lights for group in bridge.groups 
+                                    if hasattr(group, 'metadata') and group.metadata.name == group_name]
             if not local_light_id_groups:
                 continue
             local_light_ids = [id for id_group in local_light_id_groups for id in id_group]
             # Found the group and lights within it.
             log.debug(f"Found Hue group '{group_name}' on {host}; lights: {local_light_ids}")
             # Get unique IDs for the lights.
-            unique_ids = {bridge.lights[id].uniqueid for id in local_light_ids}
+            unique_ids = {bridge.lights[id].id for id in local_light_ids}
             # Get entity IDs for unique IDs.
             entity_ids += [id for id, entity in entity_registry.entities.items() 
                             if entity.unique_id in unique_ids and entity.platform == "hue"]
