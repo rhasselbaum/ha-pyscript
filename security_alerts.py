@@ -44,7 +44,11 @@ def front_door_end_flood():
     # Make list of booleans indicating whether each front door light has the flood color. Note that
     # the RGB value is slightly different here b/c this is what HA reads back after flood lighting
     # has been turned on. Apparently, there's some value fitting going on. :-/
-    lights_flooding = [state.get(f"{light}.rgb_color") == (255, 252, 252) for light in FRONT_LIGHTS]
+    lights_flooding = [
+        state.get(f"{light}.rgb_color") == (255, 252, 252)
+        if state.get(light) == "on" else False
+        for light in FRONT_LIGHTS
+    ]
     # If all front door lights are in the flood state, turn them off.
     if light.outside == "on" and all(lights_flooding):
         light.turn_off(entity_id="light.outside")
