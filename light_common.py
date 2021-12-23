@@ -21,3 +21,6 @@ def flash_lights(entity_ids=[], rgb_color=[255, 50, 0], count=3, delay_sec=1.25)
         task.sleep(delay_sec)
         scene.turn_on(entity_id="scene." + snapshot_id)
         task.sleep(delay_sec)
+    # Occasionally, light gets stuck in "flash" state. Reapply the scene one final time.
+    task.sleep(2)
+    scene.turn_on(entity_id="scene." + snapshot_id)
