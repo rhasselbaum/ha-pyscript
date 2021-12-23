@@ -10,10 +10,13 @@ from enum import Enum
 from datetime import datetime
 
 # Zones and climate entities.
-Zone = Enum("Zone", "UPSTAIRS DOWNSTAIRS MASTER_BEDROOM")    
+Zone = Enum("Zone", "UPSTAIRS DOWNSTAIRS MASTER_BEDROOM")
 # First entity deterines HVAC mode for each zone.
 ZONE_ENTITIES = {
-    Zone.UPSTAIRS: ["climate.back_bedroom_mini_split", "climate.front_bedroom_mini_split"],
+    Zone.UPSTAIRS: [
+        "climate.back_bedroom_mini_split",
+        "climate.front_bedroom_mini_split",
+    ],
     Zone.DOWNSTAIRS: ["climate.living_room_mini_split", "climate.office_mini_split"],
     Zone.MASTER_BEDROOM: ["climate.master_bedroom_mini_split"],
 }
@@ -24,15 +27,20 @@ DayPattern = Enum("DayPattern", "ALL WEEKDAYS WEEKENDS")
 # Schedules. An automation calling the service must be triggered on these times. Otherwise, nothing will happen.
 HEAT_SCHEDULE = {
     Zone.UPSTAIRS: {
-        DayPattern.WEEKDAYS: {
-            "08:00": 58,
-        },
+        # Disable weekdays schedule during winter break.
+        # DayPattern.WEEKDAYS: {
+        #     "08:00": 58,
+        # },
         DayPattern.ALL: {
             "15:00": 69,
             "23:00": 69,
         },
     },
     Zone.MASTER_BEDROOM: {
+        DayPattern.WEEKDAYS: {
+            "07:00": 67,
+            "12:00": 65,
+        },
         DayPattern.ALL: {
             "07:00": 65,
             "17:00": 62,
@@ -48,32 +56,46 @@ HEAT_SCHEDULE = {
 VACATION_HEAT_TEMP = 58
 
 
-def _apply_day_zone_temps(zone, day_schedule, vacation_mode_temp, now):
-    """Apply temperature change for one zone and day.
-    
-    If the current time matches a time in the schedule, set the zone temperature to the scheduled
-    temp or the vacation mode temp if vacation mode is on.
-    """
-    scheduled_temp = day_schedule.get(now.strftime("%H:%M"))
-    if scheduled_temp is not None:
-        target_temp = vacation_mode_temp if input_boolean.vacation_mode == "on" else scheduled_temp 
-        climate.set_temperature(entity_id=ZONE_ENTITIES[zone], temperature=target_temp, blocking=True)
+def _apply_zone_temp(zone, zone_schedule, vacation_mode_temp, heat_boost, now):
+    """Apply scheduled temperatute change for one zone.
 
-
-def _apply_zone_temps(zone, zone_schedule, vacation_mode_temp, now):
-    """Apply scheduled temperatute changes for one zone.
-    
     Check the current day of week against the day patterns in the zone schedule and if they match,
-    apply scheduled temperature changes for the day.
+    apply scheduled temperature change for the current day and time, if any. More specific day
+    patterns (weekdays and weekends) override less specific ones ("all").
+
+    If the current time matches a time in the schedule, set the zone temperature to the scheduled
+    temp or the vacation mode temp if vacation mode is on. If heat boost is enabled, the scheduled
+    temp is adjusted slightly higher to compensate for stubborn controller.
+
+    Params:
+        zone: Name of top-most element from schedule structures.
+        zone_schedule: Dict of day patterns (weekends, weekdays, etc.) to time-temp schedule.
+        vacation_mode_temp: Override temperature value to set when vacation mode is enabled.
+        heat_boost: If true, increase target temp by a small amount above the scheduled temp to
+            compensate for controller not quite hitting target temp when using oil.
+        now: Current datetime.
     """
+    # Create a merged schedule from all applicable day patterns.
+    merged_day_schedule = {}
     if zone_schedule.get(DayPattern.ALL):
-        _apply_day_zone_temps(zone, zone_schedule[DayPattern.ALL], vacation_mode_temp, now)
+        merged_day_schedule.update(zone_schedule[DayPattern.ALL])
     if now.weekday() < 5 and zone_schedule.get(DayPattern.WEEKDAYS):
-        # Today is a weekday and there's a weekday schedule.
-        _apply_day_zone_temps(zone, zone_schedule[DayPattern.WEEKDAYS], vacation_mode_temp, now)
+        merged_day_schedule.update(zone_schedule[DayPattern.WEEKDAYS])
     elif now.weekday() >= 5 and zone_schedule.get(DayPattern.WEEKENDS):
-        # Today's a weekend and there's a weekend schedule.
-        _apply_day_zone_temps(zone, zone_schedule[DayPattern.WEEKENDS], vacation_mode_temp, now)
+        merged_day_schedule.update(zone_schedule[DayPattern.WEEKENDS])
+
+    # Apply change for the current time, if any.
+    scheduled_temp = merged_day_schedule.get(now.strftime("%H:%M"))
+    if scheduled_temp is not None:
+        target_temp = (
+            vacation_mode_temp
+            if input_boolean.vacation_mode == "on"
+            else scheduled_temp
+        )
+        adjusted_temp = target_temp if not heat_boost else target_temp + 2
+        climate.set_temperature(
+            entity_id=ZONE_ENTITIES[zone], temperature=adjusted_temp, blocking=True
+        )
 
 
 @service
@@ -81,9 +103,18 @@ def climate_updates():
     """Update thermostats if necessary based on schedule."""
     now = datetime.now()
     for zone in list(Zone):
-        hvac_mode = state.get(ZONE_ENTITIES[zone][0])
+        # Pick one entity from each zone to determine if we're in "heat" or "cool" mode.
+        # Assumption is that all units in a zone will be the same mode. Otherwise, weirdness.
+        sample_zone_entity = ZONE_ENTITIES[zone][0]
+        hvac_mode = state.get(sample_zone_entity)
         if hvac_mode == "heat":
-            _apply_zone_temps(zone, HEAT_SCHEDULE[zone], VACATION_HEAT_TEMP, now)
+            # When minisplits are idle in heat mode, we're using oil. But for some reason, the
+            # controller keeps max temp 2 degrees colder than target so we give a small boost
+            # to target temps.
+            heat_boost = state.get(f"{sample_zone_entity}.hvac_action") == "idle"
+            # Apply heat schedule.
+            _apply_zone_temp(
+                zone, HEAT_SCHEDULE[zone], VACATION_HEAT_TEMP, heat_boost, now
+            )
         elif hvac_mode == "cool":
-            log,error("Cooling schedule not defined yet.")
-
+            log.error("Cooling schedule not defined yet.")
