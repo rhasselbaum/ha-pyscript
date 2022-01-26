@@ -27,10 +27,10 @@ DayPattern = Enum("DayPattern", "ALL WEEKDAYS WEEKENDS")
 # Schedules. An automation calling the service must be triggered on these times. Otherwise, nothing will happen.
 HEAT_SCHEDULE = {
     Zone.UPSTAIRS: {
-        # Disable weekdays schedule during winter break.
-        # DayPattern.WEEKDAYS: {
-        #     "08:00": 58,
-        # },
+        Disable weekdays schedule during winter break.
+        DayPattern.WEEKDAYS: {
+            "08:00": 58,
+        },
         DayPattern.ALL: {
             "15:00": 69,
             "23:00": 69,
