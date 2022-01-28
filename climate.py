@@ -95,6 +95,7 @@ def _apply_zone_temp(zone, zone_schedule, vacation_mode_temp, heat_boost, now):
         climate.set_temperature(
             entity_id=ZONE_ENTITIES[zone], temperature=adjusted_temp, blocking=True
         )
+        log.info(f"Setting new temperature {adjusted_temp} on {ZONE_ENTITIES[zone]}.")
 
 
 @service
