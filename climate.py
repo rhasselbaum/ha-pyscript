@@ -28,31 +28,31 @@ DayPattern = Enum("DayPattern", "ALL WEEKDAYS WEEKENDS")
 HEAT_SCHEDULE = {
     Zone.UPSTAIRS: {
         DayPattern.WEEKDAYS: {
-            "08:00": 58,
+            "08:00": 62,
         },
         DayPattern.ALL: {
-            "15:00": 69,
+            "14:00": 69,
             "23:00": 69,
         },
     },
     Zone.MASTER_BEDROOM: {
         DayPattern.WEEKDAYS: {
-            "07:00": 67,
+            "06:30": 68,
             "12:00": 65,
         },
         DayPattern.ALL: {
-            "07:00": 65,
-            "17:00": 62,
+            "06:30": 68,
+            "17:00": 65,
         },
     },
     Zone.DOWNSTAIRS: {
         DayPattern.ALL: {
-            "22:30": 58,
-            "06:30": 68,
+            "06:00": 68,
+            "22:30": 60,
         },
     },
 }
-VACATION_HEAT_TEMP = 58
+VACATION_HEAT_TEMP = 60
 
 
 def _apply_zone_temp(zone, zone_schedule, vacation_mode_temp, heat_boost, now):
@@ -118,3 +118,25 @@ def climate_updates():
             )
         elif hvac_mode == "cool":
             log.error("Cooling schedule not defined yet.")
+
+
+@service
+def dial_temperature(zone, degrees):
+    """Change relative temperature in a zone.
+
+    Params:
+        zone: Name of top-most element from zone entities structure.
+        degrees: Amount of change (integer). Positive increases temp, negative decreases.
+    """
+    if zone not in [zone.name for zone in Zone]:
+        raise ValueError(f"Climate zone not found: {zone}")
+    entities = ZONE_ENTITIES.get(Zone[zone])
+    for entity_id in entities:
+        old_temp = state.get(f"{entity_id}.temperature")
+        new_temp = old_temp + degrees
+        if old_temp != new_temp:
+            climate.set_temperature(entity_id=entity_id, temperature=new_temp, blocking=True)
+            direction = "Increasing" if old_temp < new_temp else "Decreasing"
+            log.info(f"{direction} {entity_id} temperature from {old_temp} to {new_temp}.")
+        else:
+            log.warning(f"Temperature change of 0 was requested for {entity_id}.")
