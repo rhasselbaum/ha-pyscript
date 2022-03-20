@@ -4,6 +4,7 @@ Pyscript must be configured to expose the "hass" global variable and allow all i
 so that we can access the Hue bridge configs and entity registry.
 """
 from aiohue import HueBridgeV2
+from aiohue.v2.models.resource import ResourceTypes
 from homeassistant.helpers import entity_registry as er
 import time
 import heapq
@@ -330,24 +331,27 @@ def light_entities_for_group(group_name):
     for config_entry in hass.config_entries.async_entries(domain="hue"):
         host, api_key = config_entry.data["host"], config_entry.data["api_key"]
         async with HueBridgeV2(host, api_key) as bridge:
-            # Query Hue bridge for lights in the matching group (if any).
-            local_light_id_groups = [
-                group.lights
+            # Query Hue bridge for light services in the matching group(s), if any.
+            service_groups = [
+                group.services
                 for group in bridge.groups
                 if hasattr(group, "metadata") and group.metadata.name == group_name
             ]
-            if not local_light_id_groups:
+            light_service_ids = {
+                service.rid
+                for service_group in service_groups
+                for service in service_group
+                if service.rtype == ResourceTypes.LIGHT
+            }
+            if not light_service_ids:
                 continue
-            local_light_ids = [id for id_group in local_light_id_groups for id in id_group]
             # Found the group and lights within it.
-            log.debug(f"Found Hue group '{group_name}' on {host}; lights: {local_light_ids}")
-            # Get unique IDs for the lights.
-            unique_ids = {bridge.lights[id].id for id in local_light_ids}
-            # Get entity IDs for unique IDs.
+            log.debug(f"Found Hue group '{group_name}' on {host}; lights: {light_service_ids}")
+            # Get entity IDs for light service IDs.
             entity_ids += [
                 id
                 for id, entity in entity_registry.entities.items()
-                if entity.unique_id in unique_ids and entity.platform == "hue"
+                if entity.unique_id in light_service_ids and entity.platform == "hue"
             ]
             log.debug(f"Entites added to group {group_name}: {entity_ids}")
     return entity_ids
