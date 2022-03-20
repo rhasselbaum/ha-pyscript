@@ -42,7 +42,7 @@ HEAT_SCHEDULE = {
         },
         DayPattern.ALL: {
             "06:30": 68,
-            "17:00": 65,
+            "17:00": 62,
         },
     },
     Zone.DOWNSTAIRS: {
