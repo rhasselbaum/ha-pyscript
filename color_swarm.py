@@ -314,16 +314,16 @@ swarms = {
 
 
 def light_entities_for_group(group_name):
-    """Find light entity IDs for the Philips Hue group/room name.
+    """Find light entity IDs for the Philips Hue zone/room name.
 
-    All configured Hue bridges are queried for the group, since HA doesn't store Hue group membership data.
-    Pyscript must be configured to expose the "hass" global variable and allow all imports so that we can
-    access the bridge configs and entity registry.
+    All configured Hue bridges are queried for the group. Pyscript must be configured to expose the
+    "hass" global variable and allow all imports so that we can access the bridge configs and entity
+    registry.
 
-    :param group_name: The Hue group/room name exactly as it appears in the Hue app (e.g. "Living room").
-    :return: List of light entity IDs for the group name or empty list if no matching group or entities are found.
+    :param group_name: The Hue zone/room name exactly as it appears in the Hue app (e.g. "Living room").
+    :return: Set of light entity IDs for the group name or empty set if no matching group or entities are found.
     """
-    entity_ids = []
+    entity_ids = set()
 
     # Load entity registry.
     entity_registry = er.async_get_registry(hass)
@@ -332,28 +332,19 @@ def light_entities_for_group(group_name):
         host, api_key = config_entry.data["host"], config_entry.data["api_key"]
         async with HueBridgeV2(host, api_key) as bridge:
             # Query Hue bridge for light services in the matching group(s), if any.
-            service_groups = [
-                group.services
-                for group in bridge.groups
-                if hasattr(group, "metadata") and group.metadata.name == group_name
-            ]
-            light_service_ids = {
-                service.rid
-                for service_group in service_groups
-                for service in service_group
-                if service.rtype == ResourceTypes.LIGHT
-            }
-            if not light_service_ids:
-                continue
-            # Found the group and lights within it.
-            log.debug(f"Found Hue group '{group_name}' on {host}; lights: {light_service_ids}")
-            # Get entity IDs for light service IDs.
-            entity_ids += [
-                id
-                for id, entity in entity_registry.entities.items()
-                if entity.unique_id in light_service_ids and entity.platform == "hue"
-            ]
-            log.debug(f"Entites added to group {group_name}: {entity_ids}")
+            for group in bridge.groups:
+                if not hasattr(group, "metadata") or group.metadata.name != group_name:
+                    continue
+
+                lights_resolver = bridge.groups.room if group.type == ResourceTypes.ROOM else bridge.groups.zone
+                light_ids = {light.id for light in lights_resolver.get_lights(group.id)}
+                group_entity_ids = {
+                    id
+                    for id, entity in entity_registry.entities.items()
+                    if entity.unique_id in light_ids and entity.platform == "hue"
+                }
+                log.debug(f"Found Hue group '{group_name}' on {host}; lights: {group_entity_ids}")
+                entity_ids |= group_entity_ids
     return entity_ids
 
 
