@@ -310,6 +310,32 @@ swarms = {
             },
         ],
     },
+    "Velvet rose": {
+        "transition_secs": 10,
+        "max_hold_secs": 60,
+        "palette": [
+            {
+                "rgb_color": (255, 125, 162),
+                "brightness": 64,
+            },
+            {
+                "rgb_color": (255, 111, 169),
+                "brightness": 64,
+            },
+            {
+                "rgb_color": (239, 125, 255),
+                "brightness": 64,
+            },
+            {
+                "rgb_color": (255, 134, 116),
+                "brightness": 64,
+            },
+            {
+                "rgb_color": (255, 147, 185),
+                "brightness": 64,
+            },
+        ],
+    },
 }
 
 
