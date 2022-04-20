@@ -7,7 +7,13 @@ def front_door_alert():
 
     notify.ephemeral_notifications_group(title="Front door motion", message="There is motion at the front door.")
     pyscript.flash_lights(
-        entity_ids=["light.tree_lamp_left", "light.table_north", "light.office_fan_ne"],
+        entity_ids=[
+            "light.tree_lamp_left",
+            "light.table_north",
+            "light.office_fan_ne",
+            "light.monitor_backsplash_left",
+            "light.monitor_backsplash_right"
+        ],
         rgb_color=[255, 50, 0]
     )
 
@@ -18,7 +24,13 @@ def back_yard_alert():
 
     notify.ephemeral_notifications_group(title="Backyard motion", message="There is motion in the back yard.")
     pyscript.flash_lights(
-        entity_ids=["light.tree_lamp_right", "light.table_south", "light.office_fan_sw"],
+        entity_ids=[
+            "light.tree_lamp_left",
+            "light.table_north",
+            "light.office_fan_ne",
+            "light.monitor_backsplash_left",
+            "light.monitor_backsplash_right"
+        ],
         rgb_color=[77, 0, 255]
     )
 
