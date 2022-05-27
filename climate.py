@@ -28,7 +28,7 @@ DayPattern = Enum("DayPattern", "ALL WEEKDAYS WEEKENDS")
 HEAT_SCHEDULE = {
     Zone.UPSTAIRS: {
         DayPattern.WEEKDAYS: {
-            "08:00": 62,
+            "08:00": 65,
         },
         DayPattern.ALL: {
             "14:00": 69,
@@ -53,6 +53,31 @@ HEAT_SCHEDULE = {
     },
 }
 VACATION_HEAT_TEMP = 60
+
+COOL_SCHEDULE = {
+    Zone.UPSTAIRS: {
+        DayPattern.WEEKDAYS: {
+            "08:00": 77,
+        },
+        DayPattern.ALL: {
+            "14:00": 75,
+            "23:00": 75,
+        },
+    },
+    Zone.MASTER_BEDROOM: {
+        DayPattern.ALL: {
+            "07:00": 75,
+            "22:30": 72,
+        },
+    },
+    Zone.DOWNSTAIRS: {
+        DayPattern.ALL: {
+            "07:00": 75,
+            "23:00": 78,
+        },
+    },
+}
+VACATION_COOL_TEMP = 78
 
 
 def _apply_zone_temp(zone, zone_schedule, vacation_mode_temp, heat_boost, now):
@@ -117,7 +142,10 @@ def climate_updates():
                 zone, HEAT_SCHEDULE[zone], VACATION_HEAT_TEMP, heat_boost, now
             )
         elif hvac_mode == "cool":
-            log.error("Cooling schedule not defined yet.")
+            # Apply cooling schedule.
+            _apply_zone_temp(
+                zone, COOL_SCHEDULE[zone], VACATION_COOL_TEMP, False, now
+            )
 
 
 @service
@@ -140,3 +168,17 @@ def dial_temperature(zone, degrees):
             log.info(f"{direction} {entity_id} temperature from {old_temp} to {new_temp}.")
         else:
             log.warning(f"Temperature change of 0 was requested for {entity_id}.")
+
+
+@service
+def set_all_hvac_mode(hvac_mode):
+    """Change HVAC mode of all zone entities at once.
+
+    The built-in Climate service supports an 'all' option, but this function limits the change to
+    only zone entities defined here.
+
+    Param:
+        hvac_mode: HVAC mode such as 'off', 'cool', 'heat', etc.
+    """
+    for zone_entities in ZONE_ENTITIES.values():
+        climate.set_hvac_mode(entity_id=zone_entities, hvac_mode=hvac_mode)
