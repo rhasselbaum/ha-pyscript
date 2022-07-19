@@ -56,9 +56,9 @@ VACATION_HEAT_TEMP = 60
 
 COOL_SCHEDULE = {
     Zone.UPSTAIRS: {
-        DayPattern.WEEKDAYS: {
-            "08:00": 77,
-        },
+        # DayPattern.WEEKDAYS: {
+        #     "08:00": 77,
+        # },
         DayPattern.ALL: {
             "14:00": 75,
             "23:00": 75,
@@ -66,8 +66,10 @@ COOL_SCHEDULE = {
     },
     Zone.MASTER_BEDROOM: {
         DayPattern.ALL: {
+            "01:00": 70,
+            "05:00": 72,
             "07:00": 75,
-            "22:30": 72,
+            "22:00": 72,
         },
     },
     Zone.DOWNSTAIRS: {
