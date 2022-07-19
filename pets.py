@@ -2,8 +2,7 @@
 # Maps pet food container vibration sensors to todo item names and recently fed input booleans (helpers).
 SENSOR_MAPPINGS = {
     "binary_sensor.cat_food_ias_zone": ("feed cats", "input_boolean.cats_recently_fed"),
-    "binary_sensor.oakley_food_ias_zone": ("feed oakley", "input_boolean.oakley_recently_fed"),
-    "binary_sensor.daisy_food_ias_zone": ("feed daisy", "input_boolean.daisy_recently_fed"),
+    "binary_sensor.dogs_food_ias_zone": ("feed dogs", "input_boolean.dogs_recently_fed"),
 }
 
 
@@ -32,6 +31,8 @@ def clear_pet_food_reminder(entity_id):
     if state.get(recently_fed_input_boolean) == "off":
         _run_alexa_command(f"remove {todo_name} to my todo list")
         state.set(recently_fed_input_boolean, "on")
+    else:
+        task.sleep(5)
 
 
 @service
@@ -42,4 +43,4 @@ def set_pet_food_reminders():
     for todo_name, recently_fed_input_boolean in SENSOR_MAPPINGS.values():
         _run_alexa_command(f"add {todo_name} to my todo list")
         state.set(recently_fed_input_boolean, "off")
-    _run_alexa_command("set volume 5")
+    _run_alexa_command("set volume 4")
