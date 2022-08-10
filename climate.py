@@ -66,9 +66,7 @@ COOL_SCHEDULE = {
     },
     Zone.MASTER_BEDROOM: {
         DayPattern.ALL: {
-            "01:00": 70,
-            "05:00": 72,
-            "07:00": 75,
+            "08:00": 74,
             "22:00": 72,
         },
     },
