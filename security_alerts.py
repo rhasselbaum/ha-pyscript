@@ -1,4 +1,17 @@
+from datetime import datetime
+
 FRONT_LIGHTS = ["light.front_door_east", "light.front_door_west"]
+
+# Don't flash upstairs lights late at night.
+SUPPRESS_UPSTAIRS_ALERTS_AFTER_HOUR = 23
+SUPPRESS_UPSTAIRS_ALERTS_BEFORE_HOUR = 6
+
+
+def upstairs_alerts_enabled():
+    """Returns true only if upstairs light alerts should be enabled because it's not late-night."""
+    
+    hour = datetime.now().hour
+    return hour >= SUPPRESS_UPSTAIRS_ALERTS_BEFORE_HOUR and hour < SUPPRESS_UPSTAIRS_ALERTS_AFTER_HOUR
 
 
 @service
@@ -6,16 +19,16 @@ def front_door_alert():
     """Alert for front door motion."""
 
     notify.ephemeral_notifications_group(title="Front door motion", message="There is motion at the front door.")
-    pyscript.flash_lights(
-        entity_ids=[
-            "light.tree_lamp_left",
-            "light.table_north",
-            "light.office_fan_ne",
-            "light.monitor_backsplash_left",
-            "light.monitor_backsplash_right"
-        ],
-        rgb_color=[255, 50, 0]
-    )
+    light_entity_ids = [
+        "light.tree_lamp_left",
+        "light.table_north",
+        "light.office_fan_ne",
+        "light.monitor_backsplash_left",
+        "light.monitor_backsplash_right",
+    ]
+    if upstairs_alerts_enabled():
+        light_entity_ids += ["light.master_bath_mirror_left"]
+    pyscript.flash_lights(entity_ids=light_entity_ids, rgb_color=[255, 50, 0])
 
 
 @service
@@ -23,16 +36,16 @@ def back_yard_alert():
     """Alert for back yard motion."""
 
     notify.ephemeral_notifications_group(title="Backyard motion", message="There is motion in the back yard.")
-    pyscript.flash_lights(
-        entity_ids=[
-            "light.tree_lamp_left",
-            "light.table_north",
-            "light.office_fan_ne",
-            "light.monitor_backsplash_left",
-            "light.monitor_backsplash_right"
-        ],
-        rgb_color=[77, 0, 255]
-    )
+    light_entity_ids=[
+        "light.tree_lamp_right",
+        "light.table_north",
+        "light.office_fan_sw",
+        "light.monitor_backsplash_left",
+        "light.monitor_backsplash_right",
+    ]
+    if upstairs_alerts_enabled():
+        light_entity_ids += ["light.master_bath_mirror_right"]
+    pyscript.flash_lights(entity_ids=light_entity_ids, rgb_color=[77, 0, 255])
 
 
 @service
