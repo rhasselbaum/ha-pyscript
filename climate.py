@@ -27,32 +27,36 @@ DayPattern = Enum("DayPattern", "ALL WEEKDAYS WEEKENDS")
 # Schedules. An automation calling the service must be triggered on these times. Otherwise, nothing will happen.
 HEAT_SCHEDULE = {
     Zone.UPSTAIRS: {
-        DayPattern.WEEKDAYS: {
-            "08:00": 65,
-        },
+        # DayPattern.WEEKDAYS: {
+        #     "08:00": 65,
+        # },
         DayPattern.ALL: {
-            "14:00": 69,
-            "23:00": 69,
+            "08:00": 68,
+            "14:00": 68,
+            "23:00": 66,
         },
     },
     Zone.MASTER_BEDROOM: {
         DayPattern.WEEKDAYS: {
-            "06:30": 68,
-            "12:00": 65,
+            "12:00": 68,
         },
         DayPattern.ALL: {
-            "06:30": 68,
-            "17:00": 62,
+            "10:00": 66,
+            "17:00": 64,
         },
     },
     Zone.DOWNSTAIRS: {
         DayPattern.ALL: {
-            "06:00": 68,
-            "22:30": 60,
+            "06:00": 67,
+            "22:30": 62,
         },
     },
 }
-VACATION_HEAT_TEMP = 60
+VACATION_HEAT_TEMP = 62
+
+# Amount by which to increase/decrease target temp when oil heat is engaged/disenabled, respectively.
+# This is needed because the mini-split controller tends to let the boiler run colder than the requested temp.
+OIL_HEAT_BOOST = 2
 
 COOL_SCHEDULE = {
     Zone.UPSTAIRS: {
@@ -116,7 +120,7 @@ def _apply_zone_temp(zone, zone_schedule, vacation_mode_temp, heat_boost, now):
             if input_boolean.vacation_mode == "on"
             else scheduled_temp
         )
-        adjusted_temp = target_temp if not heat_boost else target_temp + 2
+        adjusted_temp = target_temp if not heat_boost else target_temp + OIL_HEAT_BOOST
         climate.set_temperature(
             entity_id=ZONE_ENTITIES[zone], temperature=adjusted_temp, blocking=True
         )
@@ -149,16 +153,29 @@ def climate_updates():
 
 
 @service
-def dial_temperature(zone, degrees):
-    """Change relative temperature in a zone.
+def change_oil_heat_boost(entity_id, increasing):
+    """Change relative temperature of an entity ID by the OIL_HEAT_BOOST value.
+
+    The oil heat boost increases or decreases the target temperature by a small amount to compensate for the fact
+    that the mini-split controller tends to let the boiler run colder when oil heat is engaged.
 
     Params:
-        zone: Name of top-most element from zone entities structure.
+        entity_id: Climate entity ID.
+        increasing: If True, increase target temperature by the boost value. Otherwise, decrease by the same value.
+    """
+    degrees = OIL_HEAT_BOOST if increasing else -OIL_HEAT_BOOST
+    dial_temperature(entity_id, degrees)
+
+
+@service
+def dial_temperature(zone_or_entity_id, degrees):
+    """Change relative temperature for a zone or climate entity.
+
+    Params:
+        zone_or_entity_id: Name of top-most element from zone entities structure OR a climate entity ID.
         degrees: Amount of change (integer). Positive increases temp, negative decreases.
     """
-    if zone not in [zone.name for zone in Zone]:
-        raise ValueError(f"Climate zone not found: {zone}")
-    entities = ZONE_ENTITIES.get(Zone[zone])
+    entities = ZONE_ENTITIES.get(Zone[zone_or_entity_id]) if zone_or_entity_id in [zone.name for zone in Zone] else [zone_or_entity_id]
     for entity_id in entities:
         old_temp = state.get(f"{entity_id}.temperature")
         new_temp = old_temp + degrees
