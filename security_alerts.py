@@ -3,7 +3,7 @@ from datetime import datetime
 FRONT_LIGHTS = ["light.front_door_east", "light.front_door_west"]
 
 # Don't flash upstairs lights late at night.
-SUPPRESS_UPSTAIRS_ALERTS_AFTER_HOUR = 23
+SUPPRESS_UPSTAIRS_ALERTS_AFTER_HOUR = 20
 SUPPRESS_UPSTAIRS_ALERTS_BEFORE_HOUR = 6
 
 
@@ -25,6 +25,7 @@ def front_door_alert():
         "light.office_fan_ne",
         "light.monitor_backsplash_left",
         "light.monitor_backsplash_right",
+        "light.half_bath_north",
     ]
     if upstairs_alerts_enabled():
         light_entity_ids += ["light.master_bath_mirror_left"]
@@ -42,6 +43,7 @@ def back_yard_alert():
         "light.office_fan_sw",
         "light.monitor_backsplash_left",
         "light.monitor_backsplash_right",
+        "light.half_bath_south",
     ]
     if upstairs_alerts_enabled():
         light_entity_ids += ["light.master_bath_mirror_right"]
