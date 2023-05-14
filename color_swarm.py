@@ -352,7 +352,7 @@ def light_entities_for_group(group_name):
     entity_ids = set()
 
     # Load entity registry.
-    entity_registry = er.async_get_registry(hass)
+    entity_registry = er.async_get(hass)
     # Find Hue bridge config(s).
     for config_entry in hass.config_entries.async_entries(domain="hue"):
         host, api_key = config_entry.data["host"], config_entry.data["api_key"]
