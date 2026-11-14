@@ -27,12 +27,9 @@ DayPattern = Enum("DayPattern", "ALL WEEKDAYS WEEKENDS")
 # Schedules. An automation calling the service must be triggered on these times. Otherwise, nothing will happen.
 HEAT_SCHEDULE = {
     Zone.UPSTAIRS: {
-        # DayPattern.WEEKDAYS: {
-        #     "08:00": 65,
-        # },
         DayPattern.ALL: {
             "08:00": 68,
-            "14:00": 68,
+            "14:00": 66,
             "23:00": 66,
         },
     },
@@ -41,14 +38,14 @@ HEAT_SCHEDULE = {
             "12:00": 68,
         },
         DayPattern.ALL: {
-            "10:00": 66,
+            "10:00": 68,
             "17:00": 64,
         },
     },
     Zone.DOWNSTAIRS: {
         DayPattern.ALL: {
-            "06:00": 67,
-            "22:30": 62,
+            "06:30": 68,
+            "22:30": 63,
         },
     },
 }
@@ -60,28 +57,25 @@ OIL_HEAT_BOOST = 2
 
 COOL_SCHEDULE = {
     Zone.UPSTAIRS: {
-        # DayPattern.WEEKDAYS: {
-        #     "08:00": 77,
-        # },
         DayPattern.ALL: {
-            "14:00": 75,
-            "23:00": 75,
+            "09:00": 73,
+            "22:00": 70,
         },
     },
     Zone.MASTER_BEDROOM: {
         DayPattern.ALL: {
-            "08:00": 74,
-            "21:30": 72,
+            "09:00": 73,
+            "22:00": 70,
         },
     },
     Zone.DOWNSTAIRS: {
         DayPattern.ALL: {
-            "07:00": 75,
+            "09:00": 72,
             "23:00": 78,
         },
     },
 }
-VACATION_COOL_TEMP = 78
+VACATION_COOL_TEMP = 75
 
 
 def _apply_zone_temp(zone, zone_schedule, vacation_mode_temp, heat_boost, now):

@@ -1,8 +1,8 @@
 
 # Maps pet food container vibration sensors to todo item names and recently fed input booleans (helpers).
 SENSOR_MAPPINGS = {
-    "binary_sensor.cat_food_ias_zone": ("feed cats", "input_boolean.cat_recently_fed"),
-    "binary_sensor.dog_food_ias_zone": ("feed oakley", "input_boolean.dog_recently_fed"),
+    "binary_sensor.sm_food_container_ias_zone": ("feed kaia", "input_boolean.kaia_recently_fed"),
+    "binary_sensor.lg_food_container_ias_zone": ("feed oakley", "input_boolean.oakley_recently_fed"),
 }
 
 

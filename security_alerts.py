@@ -23,8 +23,8 @@ def front_door_alert():
         "light.tree_lamp_left",
         "light.table_north",
         "light.office_fan_ne",
-        "light.monitor_backsplash_left",
-        "light.monitor_backsplash_right",
+        "light.desk_backsplash_left",
+        "light.desk_backsplash_right",
         "light.half_bath_north",
     ]
     if upstairs_alerts_enabled():
@@ -41,8 +41,8 @@ def back_yard_alert():
         "light.tree_lamp_right",
         "light.table_north",
         "light.office_fan_sw",
-        "light.monitor_backsplash_left",
-        "light.monitor_backsplash_right",
+        "light.desk_backsplash_left",
+        "light.desk_backsplash_right",
         "light.half_bath_south",
     ]
     if upstairs_alerts_enabled():
