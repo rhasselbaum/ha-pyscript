@@ -12,7 +12,7 @@ the detailed behavior, configuration, and automation setup.
 
 Entry points (all called by external HA automations, not internal triggers):
     climate_v2_schedule_changed: Apply the current range after a helper change.
-    climate_v2_reconcile: Retry desired settings and check overheating every 15 min.
+    climate_v2_reconcile: Retry desired settings and check overheating every N min.
     climate_v2_record_override: Remember a user-attributed mini-split change.
 
 Both actuator services follow the same path:
@@ -493,7 +493,7 @@ async def climate_v2_schedule_changed(entity_id=None):
 
 @service
 async def climate_v2_reconcile():
-    """Reconcile all managed zones and check upstairs overheating every 15 min.
+    """Reconcile all managed zones and check upstairs overheating every N min.
 
     No arguments. External automation supplies the interval. This pass also
     catches missed boundaries/failed commands without overriding a human's
