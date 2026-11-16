@@ -394,22 +394,25 @@ async def _apply_entity(entity_id, zone, mode, schedule, check_guard):
             target += OIL_HEAT_BOOST
 
     # 4. The guard compares actual temperature with the effective (boosted)
-    # target. Exactly target + 2 is safe; only strictly greater triggers it.
+    # target. Trip strictly above target + 2; release strictly below target.
+    # Between those thresholds (including equality), keep the prior guard state
+    # to avoid cycling as the room temperature fluctuates near the trip point.
     guard_enabled = mode == FULL_HEAT_MODE and zone != ZONE_DOWNSTAIRS
     # Release is provisional until the restart succeeds (or state is already
     # correct). Clearing ownership earlier would lose it on a network failure.
     release_guard = False
     if check_guard and guard_enabled:
         actual = _number(attrs.get(ATTR_CURRENT_TEMPERATURE))
-        if actual is not None and actual > target + OVERSHOOT_DEGREES:
-            # Save ownership before the network call: failed shutdowns retry.
-            entry[ENTRY_GUARD_OFF] = True
-        elif actual is None and entry.get(ENTRY_GUARD_OFF):
+        if actual is not None:
+            if actual > target + OVERSHOOT_DEGREES:
+                # Save ownership before the network call: failed shutdowns retry.
+                entry[ENTRY_GUARD_OFF] = True
+            elif actual < target:
+                release_guard = bool(entry.get(ENTRY_GUARD_OFF))
+        elif entry.get(ENTRY_GUARD_OFF):
             # Never restart a guard-stopped unit without a valid reading.
             _save_book()
             return
-        else:
-            release_guard = bool(entry.get(ENTRY_GUARD_OFF))
     # 5a. A duplicate helper event must not wake a still-guarded unit between
     # periodic checks. Retry a failed shutdown if HA still reports it powered on.
     if guard_enabled and entry.get(ENTRY_GUARD_OFF) and not release_guard:

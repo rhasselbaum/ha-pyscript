@@ -188,7 +188,11 @@ range expires the override.
   overrides. Oil boost still applies to the heating vacation target.
 - **Overheating:** Only periodic reconciliation in full-house auto heat checks
   upstairs units. Above effective target + 2°F, v2 marks and shuts off the unit.
-  At or below that threshold it releases the guard and restores scheduled heat.
+  It releases the guard and restores scheduled heat only when actual temperature
+  falls strictly below the effective target. Between the target and target + 2°F
+  (including both boundaries), the guard retains its previous state to reduce
+  cycling. For example, with a 68°F target it shuts off above 70°F and stays off
+  until below 68°F.
   A missing actual-temperature reading does not release an existing guard.
   Ordinary schedule-on reconciliation can also restore a non-overridden unit
   switched off by an unrelated, non-user automation; that is separate from guard

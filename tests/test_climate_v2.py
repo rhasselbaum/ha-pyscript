@@ -265,22 +265,90 @@ class ClimateV2Tests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.state.get(DOWNSTAIRS), "heat")
 
     async def test_guard_only_runs_on_periodic_service_and_at_strict_threshold(self):
+        self.state.attributes[UPSTAIRS]["current_temperature"] = 70
+        await self.reconcile()
+        self.assertEqual(self.state.get(UPSTAIRS), "heat")
+        self.assertFalse(self.entry().get("guard_off"))
         self.state.attributes[UPSTAIRS]["current_temperature"] = 71
         await self.changed()
         self.assertEqual(self.state.get(UPSTAIRS), "heat")
         await self.reconcile()
         self.assertEqual(self.state.get(UPSTAIRS), "off")
-        self.state.attributes[UPSTAIRS]["current_temperature"] = 70
+        self.state.attributes[UPSTAIRS]["current_temperature"] = 67.9
+        await self.changed()
+        self.assertEqual(self.state.get(UPSTAIRS), "off")
+        self.assertTrue(self.entry()["guard_off"])
         await self.reconcile()
         self.assertEqual(self.state.get(UPSTAIRS), "heat")
+        self.assertFalse(self.entry().get("guard_off"))
+
+    async def test_guard_hysteresis_preserves_state_between_trip_and_release_thresholds(self):
+        # Target 68: trip strictly above 70, release strictly below 68.
+        self.state.attributes[UPSTAIRS]["current_temperature"] = 70.1
+        await self.reconcile()
+        self.assertEqual(self.state.get(UPSTAIRS), "off")
+        self.assertTrue(self.entry()["guard_off"])
+        for actual in (70, 69, 68, 69, 70, 68):
+            with self.subTest(phase="guard latched", actual=actual):
+                self.state.attributes[UPSTAIRS]["current_temperature"] = actual
+                await self.reconcile()
+                self.assertEqual(self.state.get(UPSTAIRS), "off")
+                self.assertTrue(self.entry()["guard_off"])
+                self.assertEqual(len(self.calls_for(UPSTAIRS)), 1)
+
+        self.state.attributes[UPSTAIRS]["current_temperature"] = 67.9
+        await self.reconcile()
+        self.assertEqual(self.state.get(UPSTAIRS), "heat")
+        self.assertFalse(self.entry().get("guard_off"))
+        self.assertEqual(len(self.calls_for(UPSTAIRS)), 2)
+        for actual in (68, 69, 70, 69, 70):
+            with self.subTest(phase="guard released", actual=actual):
+                self.state.attributes[UPSTAIRS]["current_temperature"] = actual
+                await self.reconcile()
+                self.assertEqual(self.state.get(UPSTAIRS), "heat")
+                self.assertFalse(self.entry().get("guard_off"))
+                self.assertEqual(len(self.calls_for(UPSTAIRS)), 2)
+
+        self.state.attributes[UPSTAIRS]["current_temperature"] = 70.1
+        await self.reconcile()
+        self.assertEqual(self.state.get(UPSTAIRS), "off")
+        self.assertTrue(self.entry()["guard_off"])
+        self.assertEqual(len(self.calls_for(UPSTAIRS)), 3)
 
     async def test_guard_retains_oil_target_when_off_attributes_disappear(self):
         self.state.attributes[UPSTAIRS].update(hvac_action="idle", current_temperature=73)
         await self.reconcile()
-        self.state.attributes[UPSTAIRS] = {"current_temperature": 72}
+        # Only the actual-temperature sensor remains available while off. The
+        # remembered oil boost keeps the effective target at 70, not 68.
+        for actual in (72, 71, 70):
+            with self.subTest(actual=actual):
+                self.state.attributes[UPSTAIRS] = {"current_temperature": actual}
+                await self.reconcile()
+                self.assertEqual(self.state.get(UPSTAIRS), "off")
+                self.assertTrue(self.entry()["guard_off"])
+                self.assertTrue(self.entry()["oil_active"])
+        self.state.attributes[UPSTAIRS] = {"current_temperature": 69.9}
         await self.reconcile()
         self.assertEqual(self.state.get(UPSTAIRS), "heat")
         self.assertEqual(self.state.attributes[UPSTAIRS]["temperature"], 70)
+        self.assertFalse(self.entry().get("guard_off"))
+
+    async def test_guard_uses_vacation_target_for_hysteresis(self):
+        self.state.values["input_boolean.vacation_mode"] = "on"
+        self.state.attributes[UPSTAIRS]["current_temperature"] = 65
+        await self.reconcile()
+        self.assertEqual(self.state.get(UPSTAIRS), "off")
+        for actual in (64, 63, 62):
+            with self.subTest(actual=actual):
+                self.state.attributes[UPSTAIRS]["current_temperature"] = actual
+                await self.reconcile()
+                self.assertEqual(self.state.get(UPSTAIRS), "off")
+                self.assertTrue(self.entry()["guard_off"])
+        self.state.attributes[UPSTAIRS]["current_temperature"] = 61.9
+        await self.reconcile()
+        self.assertEqual(self.state.get(UPSTAIRS), "heat")
+        self.assertEqual(self.state.attributes[UPSTAIRS]["temperature"], 62)
+        self.assertFalse(self.entry().get("guard_off"))
 
     async def test_guard_holds_off_if_actual_temperature_is_unknown(self):
         self.state.attributes[UPSTAIRS]["current_temperature"] = 71
@@ -352,7 +420,7 @@ class ClimateV2Tests(unittest.IsolatedAsyncioTestCase):
     async def test_failed_guard_restart_keeps_ownership_and_unknown_reading_holds_off(self):
         self.state.attributes[UPSTAIRS]["current_temperature"] = 71
         await self.reconcile()
-        self.state.attributes[UPSTAIRS]["current_temperature"] = 70
+        self.state.attributes[UPSTAIRS]["current_temperature"] = 67.9
         self.services.fail.add(UPSTAIRS)
         with self.assertLogs("climate_v2_test", level="WARNING"):
             await self.reconcile()
@@ -361,7 +429,7 @@ class ClimateV2Tests(unittest.IsolatedAsyncioTestCase):
         self.services.fail.clear()
         await self.reconcile()
         self.assertEqual(self.state.get(UPSTAIRS), "off")
-        self.state.attributes[UPSTAIRS]["current_temperature"] = 70
+        self.state.attributes[UPSTAIRS]["current_temperature"] = 67.9
         await self.reconcile()
         self.assertEqual(self.state.get(UPSTAIRS), "heat")
         self.assertFalse(self.entry().get("guard_off"))
@@ -388,6 +456,8 @@ class ClimateV2Tests(unittest.IsolatedAsyncioTestCase):
         self.state.attributes[MASTER]["current_temperature"] = 71
         await self.reconcile()
         self.override()
+        # Cooling into the hysteresis band must not release the restored guard.
+        self.state.attributes[MASTER]["current_temperature"] = 69
         book_entity = self.module["BOOK_ENTITY"]
         self.state.attributes[book_entity] = json.loads(json.dumps(self.state.attributes[book_entity]))
         self.load_module()
@@ -396,6 +466,7 @@ class ClimateV2Tests(unittest.IsolatedAsyncioTestCase):
         await self.reconcile()
         self.assertTrue(self.entry()["override"])
         self.assertEqual(self.state.get(MASTER), "off")
+        self.assertTrue(self.entry(MASTER)["guard_off"])
 
     async def test_datetime_and_restored_iso_next_event_are_same_range(self):
         await self.reconcile()
