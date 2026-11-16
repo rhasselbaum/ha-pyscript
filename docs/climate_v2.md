@@ -3,7 +3,7 @@
 `climate_v2.py` is a service-only controller for scheduled mini-split operation.
 It does not register automatic triggers or change mini-splits when loaded.
 External Home Assistant automations call its services to apply schedules,
-reconcile device settings, and record human overrides.
+reconcile device settings, record human overrides, and shut down all units.
 
 Pyscript must have `allow_all_imports: true` enabled. `hass_is_global` is not
 required. Temperatures and offsets assume a Fahrenheit installation.
@@ -13,7 +13,7 @@ HVAC-mode, and vacation helpers are described below.
 ## Setup and validation
 
 1. Load `climate_v2.py` without wiring its actuator services to automations.
-2. Check the Pyscript logs and the three services in Developer Tools → Actions.
+2. Check the Pyscript logs and the four services in Developer Tools → Actions.
 3. Wire the override recorder below, then test user-context propagation with an
    app/UI temperature change in an automatically managed zone. Inspect
    `pyscript.climate_v2_bookkeeping` for that unit's `override: true` entry.
@@ -65,6 +65,22 @@ An empty schedule with no next event is supported as continuously off.
 These examples are for you to install/adapt; the module does not install them.
 The override recorder should run promptly and independently of actuator passes.
 Do not put both behind a single shared `mode: single` automation.
+
+### `pyscript.climate_v2_turn_off_all`
+
+No arguments. Selects `Manual` on `input_select.hvac_mode` first, then turns off
+all five configured mini-splits, regardless of managed zones or human overrides.
+Works even when already in Manual; units already off are skipped. Calls share
+the actuator lock with schedule changes and reconciliation.
+
+If selecting Manual fails, the service stops. Individual unit failures are logged
+without stopping the remaining shutdowns. Call again to retry failed/offline units;
+periodic reconciliation does not retry shutdowns in Manual. Simply selecting
+Manual still leaves devices alone.
+
+```yaml
+action: pyscript.climate_v2_turn_off_all
+```
 
 ### `pyscript.climate_v2_schedule_changed`
 

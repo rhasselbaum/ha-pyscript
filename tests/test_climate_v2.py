@@ -70,6 +70,8 @@ class FakeServices:
             self.callback(entity_id)
         if entity_id in self.fail:
             raise ConnectionError("offline")
+        if domain == "input_select" and action == "select_option":
+            self.state.values[entity_id] = kwargs["option"]
         if "temperature" in kwargs:
             self.state.attributes[entity_id]["temperature"] = kwargs["temperature"]
         if "hvac_mode" in kwargs:
@@ -141,13 +143,53 @@ class ClimateV2Tests(unittest.IsolatedAsyncioTestCase):
     async def test_loading_module_does_not_change_devices(self):
         self.assertEqual(self.services.calls, [])
 
-    async def test_manual_means_no_commands_from_any_service(self):
+    async def test_manual_means_no_automatic_commands(self):
         self.state.values["input_select.hvac_mode"] = "Manual"
         self.state.attributes[UPSTAIRS]["current_temperature"] = 90
         await self.changed()
         self.override()
         await self.reconcile()
         self.assertEqual(self.services.calls, [])
+
+    async def test_turn_off_all_selects_manual_first_and_ignores_overrides(self):
+        await self.reconcile()
+        self.override()
+        await self.module["climate_v2_turn_off_all"]()
+        domain, action, kwargs = self.services.calls[0]
+        self.assertEqual((domain, action), ("input_select", "select_option"))
+        self.assertEqual(kwargs["option"], "Manual")
+        self.assertEqual(self.state.get("input_select.hvac_mode"), "Manual")
+        self.assertEqual(self.module["_BOOK"]["mode"], "Manual")
+        for entity_id in UNITS:
+            self.assertEqual(self.state.get(entity_id), "off")
+        for _, _, kwargs in self.services.calls:
+            self.assertTrue(kwargs["blocking"])
+            self.assertIsNone(kwargs["context"].user_id)
+        count = len(self.services.calls)
+        await self.reconcile()
+        self.assertEqual(len(self.services.calls), count)
+
+    async def test_turn_off_all_works_in_manual_and_isolates_failures(self):
+        self.state.values["input_select.hvac_mode"] = "Manual"
+        self.state.values[FRONT] = "off"
+        self.services.fail.add(UPSTAIRS)
+        with self.assertLogs("climate_v2_test", level="WARNING"):
+            await self.module["climate_v2_turn_off_all"]()
+        self.assertEqual(self.calls_for(FRONT), [])
+        self.assertEqual(self.state.get(UPSTAIRS), "heat")
+        for entity_id in (MASTER, DOWNSTAIRS, OFFICE):
+            self.assertEqual(self.state.get(entity_id), "off")
+        self.services.fail.clear()
+        await self.module["climate_v2_turn_off_all"]()
+        self.assertEqual(self.state.get(UPSTAIRS), "off")
+
+    async def test_turn_off_all_aborts_if_manual_selection_fails(self):
+        self.services.fail.add("input_select.hvac_mode")
+        with self.assertRaises(ConnectionError):
+            await self.module["climate_v2_turn_off_all"]()
+        self.assertEqual(len(self.services.calls), 1)
+        for entity_id in UNITS:
+            self.assertEqual(self.state.get(entity_id), "heat")
 
     async def test_downstairs_only_leaves_all_upstairs_units_alone(self):
         self.state.values["input_select.hvac_mode"] = "Heat - auto - downstairs only"

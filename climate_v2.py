@@ -14,6 +14,7 @@ Entry points (all called by external HA automations, not internal triggers):
     climate_v2_schedule_changed: Apply the current range after a helper change.
     climate_v2_reconcile: Retry desired settings and check overheating every N min.
     climate_v2_record_override: Remember a user-attributed mini-split change.
+    climate_v2_turn_off_all: Select Manual and shut down every mini-split.
 
 Both actuator services follow the same path:
     _update -> _sync_mode -> _read_schedule/_sync_zone -> _apply_entity -> _command
@@ -450,7 +451,7 @@ async def _update(entity_id=None, check_guard=False):
             that filter so every newly managed zone gets its current settings.
         check_guard: Whether this pass may evaluate overheating/guard release.
 
-    Only this function takes the actuator lock. It synchronizes range identity
+    Shares the actuator lock with turn-off-all. It synchronizes range identity
     even when units are offline/overridden, so a missed boundary can still expire
     overrides. Device failures are handled per unit, not as a house-wide failure.
     """
@@ -478,6 +479,31 @@ async def _update(entity_id=None, check_guard=False):
                     # One offline/failing unit must not prevent the rest of the
                     # house from updating. Next interval retries actual state.
                     log.warning(f"Climate v2: update failed for {unit}: {exc}")
+
+
+@service
+async def climate_v2_turn_off_all():
+    """Select Manual, then shut down all units regardless of overrides.
+
+    Failures are logged per unit; call again to retry failed/offline units.
+    """
+    async with _UPDATE_LOCK:
+        await service.call(
+            "input_select", "select_option", entity_id=MODE_ENTITY,
+            option=MANUAL_MODE, blocking=True, context=Context(),
+        )
+        _sync_mode()
+        for entities in ZONE_ENTITIES.values():
+            for entity_id in entities:
+                if _get(entity_id) == STATE_OFF:
+                    continue
+                try:
+                    await service.call(
+                        "climate", SERVICE_SET_HVAC_MODE, entity_id=entity_id,
+                        hvac_mode=STATE_OFF, blocking=True, context=Context(),
+                    )
+                except Exception as exc:
+                    log.warning(f"Climate v2: shutdown failed for {entity_id}: {exc}")
 
 
 @service
